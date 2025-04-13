@@ -13,13 +13,20 @@ scoreContainer.appendChild(scoreElement);
 scoreContainer.appendChild(highScoreElement);
 
 // Set canvas size
-canvas.width = 800;
-canvas.height = 600;
+function resizeCanvas() {
+    const container = document.querySelector('.game-container');
+    canvas.width = container.clientWidth;
+    canvas.height = container.clientHeight;
+}
+
+// Initial resize
+resizeCanvas();
+window.addEventListener('resize', resizeCanvas);
 
 // Game objects
 const slime = {
-    x: canvas.width / 2,
-    y: canvas.height - 25,
+    x: canvas.width / 2 - 50,
+    y: canvas.height - 50,
     width: 100,
     height: 50,
     speed: 5,
@@ -34,7 +41,12 @@ const ball = {
     dy: 0,
     rotation: 0,
     lastHit: 0,
-    glowSize: 20
+    glowSize: 20,
+    gravity: 0.2,
+    normalGravity: 0.2,
+    specialGravity: 0.1,
+    normalBounce: -12,
+    specialBounce: -16
 };
 
 let score = 0;
@@ -148,8 +160,26 @@ function drawBall() {
     ctx.shadowBlur = 0;
 }
 
+function createHatTrick() {
+    const hatTrick = document.createElement('div');
+    hatTrick.className = 'hat-trick';
+    hatTrick.textContent = 'HAT-TRICK!';
+    hatTrick.style.left = `${slime.x + slime.width/2}px`;
+    hatTrick.style.top = `${slime.y}px`;
+    gameContainer.appendChild(hatTrick);
+    setTimeout(() => hatTrick.remove(), 1500);
+}
+
+function updatePulsation() {
+    if (score % 10 === 0 && score > 0) {
+        gameContainer.classList.add('enhanced-pulse');
+    } else {
+        gameContainer.classList.remove('enhanced-pulse');
+    }
+}
+
 function updateBall() {
-    ball.dy += 0.2;
+    ball.dy += ball.gravity;
     
     ball.x += ball.dx;
     ball.y += ball.dy;
@@ -177,11 +207,36 @@ function updateBall() {
         ball.x - ball.radius < slime.x + slime.width &&
         currentTime - ball.lastHit > 100) {
         
-        ball.dy = -12;
-        ball.dx = (ball.x - (slime.x + slime.width/2)) * 0.08;
+        // Check if this is a special bounce (multiple of 10)
+        const isSpecialBounce = score % 10 === 9; // Check if next score will be multiple of 10
+        
+        if (isSpecialBounce) {
+            ball.gravity = ball.specialGravity;
+            ball.dy = ball.specialBounce;
+            // Reset gravity after a short delay
+            setTimeout(() => {
+                ball.gravity = ball.normalGravity;
+            }, 1000);
+        } else {
+            ball.gravity = ball.normalGravity;
+            ball.dy = ball.normalBounce;
+        }
+        
+        // Add a subtle random horizontal movement to prevent perfect vertical bouncing
+        const randomFactor = (Math.random() - 0.5) * 0.3; // Small random value between -0.15 and 0.15
+        ball.dx = (ball.x - (slime.x + slime.width/2)) * 0.08 + randomFactor;
+        
         score++;
         scoreElement.textContent = score;
         ball.lastHit = currentTime;
+        
+        // Check for hat-trick
+        if (score % 3 === 0 && score > 0) {
+            createHatTrick();
+        }
+        
+        // Update pulsation effect
+        updatePulsation();
         
         // Update high score if needed
         if (score > highScore) {
@@ -201,6 +256,7 @@ function updateBall() {
         ball.dx = 0;
         ball.dy = 0;
         ball.rotation = 0;
+        ball.gravity = ball.normalGravity; // Reset gravity on game over
         triggerQuake();
     }
 }
